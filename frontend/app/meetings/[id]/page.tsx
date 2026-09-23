@@ -21,6 +21,7 @@ import {
   fetchMeeting,
 } from "../../lib/api";
 import { AudioPlayer } from "../../audio-player";
+import { ShareButton } from "../../share-button";
 
 type ChatMessage = { question: string; answer: string };
 
@@ -146,9 +147,12 @@ export default function MeetingDetailPage() {
         <ArrowLeft className="h-3.5 w-3.5" strokeWidth={2.5} />
         Meetings
       </Link>
-      <h1 className="mt-2 text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-        {meeting.title}
-      </h1>
+      <div className="mt-2 flex items-center gap-2">
+        <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+          {meeting.title}
+        </h1>
+        {meeting.status === "ready" && <ShareButton meetingId={meeting.id} />}
+      </div>
       <p className="mt-1 flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-500">
         <Calendar className="h-3 w-3" strokeWidth={2} />
         {new Date(meeting.date).toLocaleString(undefined, {
@@ -204,7 +208,7 @@ export default function MeetingDetailPage() {
                   >
                     <button
                       onClick={() => seekTo(segment.start_time)}
-                      className="font-mono text-xs font-medium text-blue-600 hover:underline dark:text-blue-400"
+                      className="cursor-pointer font-mono text-xs font-medium text-blue-600 hover:underline dark:text-blue-400"
                     >
                       {formatTimestamp(segment.start_time)}
                     </button>
@@ -309,7 +313,7 @@ export default function MeetingDetailPage() {
                 type="submit"
                 disabled={asking || !question.trim()}
                 aria-label="Ask"
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+                className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-blue-600 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Send className="h-4 w-4" strokeWidth={2} />
               </button>

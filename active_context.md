@@ -44,11 +44,12 @@ Phase 4 — Ask the call (chat)
 
 - **Ask the call chat done:** `POST /meetings/{id}/ask` (`backend/app/routers/meetings.py`) — reuses the same `transcript_segments` fetch as `GET /meetings/{id}`, 409 if empty (not ready yet), else calls `answer_question(segments, question)` in `app/services/summarization.py` (reuses existing `_format_transcript`, whole transcript passed raw — no embeddings/vector DB, disproportionate for single-meeting scope). Frontend: new "Ask the call" section on the meeting detail page (`frontend/app/meetings/[id]/page.tsx`), question/answer thread in local React state only (no DB persistence), loading + error states. Verified against real meeting `310026c8...` — see `progress.md` for the actual Q&A tested.
 
+- **Upload UI + rename done:** `PATCH /meetings/{id}` (`backend/app/routers/meetings.py`) accepts `{"title": ...}`, 422 on empty title, 404 if no row updated. Frontend list page (`frontend/app/page.tsx`) got an "Upload meeting" button opening a modal (title + file input, `POST /meetings/upload` via `uploadMeeting()` in `lib/api.ts`), and inline title editing (click title → input, save on Enter/blur, cancel on Escape, `renameMeeting()` PATCH). Since `/meetings/upload` blocks until the whole pipeline finishes, the modal closes immediately on submit and the list refetches once ~1.5s later (catches the row while it's still `processing`, since the DB insert happens before transcription starts) and again when the upload promise settles; polls every 3s afterward while any row is `processing`/`uploading` (same idea as the detail page's polling, just at the list level).
+
 ## What's next
 
-- Redeploy backend (Render) and frontend (Vercel) — current live URLs are still serving the old stub `/meetings` list and old detail response
-- Consider: `summarize_and_store` and `_transcribe_and_store` in `app/routers/meetings.py` are split out so they're easy to hand to `BackgroundTasks` later — upload requests currently block on the full pipeline (transcription + Groq calls), which is slow for a real recording. Worth revisiting once the frontend needs a snappier upload response.
-- No upload UI yet — meetings are still created via the `POST /meetings/upload` API directly, not from the frontend. Not asked for in this Phase 3 pass; flagging for whoever picks up next.
+- Redeploy backend (Render) and frontend (Vercel) — current live URLs are still serving the old stub `/meetings` list and old detail response, and don't have the upload/rename UI yet
+- Consider: `summarize_and_store` and `_transcribe_and_store` in `app/routers/meetings.py` are split out so they're easy to hand to `BackgroundTasks` later — upload requests currently block on the full pipeline (transcription + Groq calls), which is slow for a real recording. Worth revisiting since it's now user-triggered from the UI, not just curl.
 
 ## Resolved decisions
 

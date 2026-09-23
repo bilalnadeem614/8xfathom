@@ -64,6 +64,15 @@ Append-only log of completed work, most recent first. For current state, see `ac
 - Verified locally end to end with a synthetic silent WAV: meeting created, storage upload succeeded, Deepgram call succeeded (empty transcript as expected for silence), status reached `ready`, then cleaned up the test row/object
 - Real-audio verification (Phase 0 recording) still pending — see `active_context.md`
 
+### 2026-09-23 — Upload UI + title rename
+- `PATCH /meetings/{id}` added (`backend/app/routers/meetings.py`), updates `title`, 422 on blank, 404 if missing
+- Frontend: "Upload meeting" button + modal on the list page (`frontend/app/page.tsx`), inline click-to-edit title on the list rows
+- Tested live against the running local backend/frontend (not test data — the actual dev servers):
+  - `PATCH /meetings/{id}` via curl on an existing row → title changed in the response, re-`GET` confirmed it persisted
+  - `POST /meetings/upload` via curl with `test/test_audio.mp4` and a title → returned in ~14s with `status: "ready"`, real meeting id
+  - `npx tsc --noEmit` clean, home page HTML fetched from the running `next dev` server contains the new "Upload meeting" button, no server error
+  - Did not have a browser automation tool available in this session to click through the modal/inline-edit interactions visually — logic was verified by reading the code path end to end and confirming both API calls it depends on work correctly against the live servers
+
 ### 2026-09-23 — Backend + frontend deployed
 - Backend live on Render: https://eightxfathom.onrender.com (`/health` confirmed 200)
 - Frontend live on Vercel: https://8xfrontend.vercel.app

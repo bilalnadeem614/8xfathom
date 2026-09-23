@@ -6,9 +6,9 @@ Build in this order. Don't move to the next phase until the current one works en
 
 - [X] Sign up for real fathom.video free plan
 - [X] Connect a calendar
-- [ ] Run a real self-call (Zoom/Meet/Teams) with the Fathom bot recording
-- [ ] Walk every flow: playback vs transcript, AI summary, template switching, action items, highlight a moment, search across meetings, share a clip
-- [ ] Screenshot each flow for reference during the walkthrough recording
+- [X] Run a real self-call (Zoom/Meet/Teams) with the Fathom bot recording
+- [X] Walk every flow: playback vs transcript, AI summary, template switching, action items, highlight a moment, search across meetings, share a clip
+- [X] Screenshot each flow for reference during the walkthrough recording
 
 ## Phase 1 — Environment & skeleton
 
@@ -22,33 +22,34 @@ Build in this order. Don't move to the next phase until the current one works en
 
 ## Phase 2 — Core pipeline
 
-- [ ] Upload endpoint: accept an audio/video file, store it, create a `Meeting` row with status `processing`
-- [ ] Transcription integration (Deepgram): send audio, receive segments with speaker + timestamps, write to `TranscriptSegment`
-- [ ] Summary generation (Groq): prompt the LLM with the full transcript, write result to `Summary`
-- [ ] Action item extraction (Groq): prompt the LLM for structured owner/task output, write to `ActionItem`, link to nearest `TranscriptSegment` where possible
-- [ ] Update `Meeting.status` to `ready` once all steps complete; handle `failed` state on error
+- [X] Upload endpoint: accept an audio/video file, store it, create a `Meeting` row with status `processing`
+- [X] Transcription integration (Deepgram): send audio, receive segments with speaker + timestamps, write to `TranscriptSegment`
+- [X] Summary generation (Groq): prompt the LLM with the full transcript, write result to `Summary`
+- [X] Action item extraction (Groq): prompt the LLM for structured owner/task output, write to `ActionItem`, link to nearest `TranscriptSegment` where possible
+- [X] Update `Meeting.status` to `ready` once all steps complete; handle `failed` state on error
 
 ## Phase 3 — Core UI
 
-- [ ] Meeting list page (real data, not mocked)
-- [ ] Meeting detail page: transcript panel synced to audio/video playback, summary panel, action items panel
-- [ ] Loading/processing state shown correctly while a meeting is still being transcribed/summarized
+- [X] Meeting list page (real data, not mocked)
+- [X] Meeting detail page: transcript panel synced to audio/video playback, summary panel, action items panel
+- [X] Loading/processing state shown correctly while a meeting is still being transcribed/summarized
 
 ## Phase 4 — Differentiators (priority order, stop when time runs out)
 
-- [ ] Ask-the-call chat (RAG over the single meeting's transcript, via Groq)
-- [ ] Multiple summary templates, switchable
-- [ ] Highlights (mark timestamp, jump to it)
-- [ ] Search across meetings
+- [X] Ask-the-call chat (RAG over the single meeting's transcript, via Groq)
+- [X] Multiple summary templates, switchable
+- [X] Highlights (mark timestamp, jump to it)
+- [X] Search across meetings
 - [ ] Public shareable link for a meeting summary/clip
 
 ## Phase 5 — Seed data & polish
 
+- [X] Upload UI on the list page (modal: file + title, posts to `/meetings/upload`) and inline title editing (`PATCH /meetings/{id}`, click-to-edit on the list page)
 - [ ] Seed several realistic meetings, including one long multi-speaker (~8 people, ~1hr) transcript
 - [ ] Confirm the live link works fully signed out
 - [ ] Warm the Render backend before any reviewer is likely to click through (cold start ~30-50s)
-- [ ] UI pass: spacing, empty states, error states
-- [ ] Confirm `.agent-logs/` has been committed incrementally throughout, not just at the end
+- [X] UI pass: spacing, empty states, error states
+- [X] Confirm `.agent-logs/` has been committed incrementally throughout, not just at the end
 
 ## Phase 6 — Walkthrough & submission
 

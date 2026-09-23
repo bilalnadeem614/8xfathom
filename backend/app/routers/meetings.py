@@ -124,6 +124,24 @@ class AskRequest(BaseModel):
     question: str
 
 
+class UpdateMeetingRequest(BaseModel):
+    title: str
+
+
+@router.patch("/{meeting_id}")
+def update_meeting(meeting_id: str, body: UpdateMeetingRequest):
+    supabase = get_supabase()
+    title = body.title.strip()
+    if not title:
+        raise HTTPException(status_code=422, detail="Title cannot be empty")
+    res = (
+        supabase.table("meetings").update({"title": title}).eq("id", meeting_id).execute()
+    )
+    if not res.data:
+        raise HTTPException(status_code=404, detail="Meeting not found")
+    return res.data[0]
+
+
 @router.post("/{meeting_id}/ask")
 def ask_meeting(meeting_id: str, body: AskRequest):
     supabase = get_supabase()
