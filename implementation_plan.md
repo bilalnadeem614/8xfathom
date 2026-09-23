@@ -14,11 +14,11 @@ Build in this order. Don't move to the next phase until the current one works en
 
 - [X] Conda env `8x`, Python 3.11 (done)
 - [X] Supabase project created, tables created from `system_patterns.md` schema (done)
-- [ ] FastAPI project scaffolded (`/meetings`, `/transcripts`, `/summaries`, `/action-items`, `/highlights` routers)
-- [ ] Next.js project scaffolded with a blank meetings list page
-- [ ] Backend deployed to Render, frontend deployed to Vercel — confirm a live URL loads before writing any feature code
-- [ ] Deepgram account created, API key in `.env`
-- [ ] Groq account created, API key in `.env`
+- [X] FastAPI project scaffolded (`/meetings`, `/transcripts`, `/summaries`, `/action-items`, `/highlights` routers)
+- [X] Next.js project scaffolded with a blank meetings list page
+- [X] Backend deployed to Render, frontend deployed to Vercel — confirm a live URL loads before writing any feature code
+- [X] Deepgram account created, API key in `.env`
+- [X] Groq account created, API key in `.env`
 
 ## Phase 2 — Core pipeline
 

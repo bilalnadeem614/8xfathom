@@ -4,6 +4,11 @@ Append-only log of completed work, most recent first. For current state, see `ac
 
 ---
 
+### 2026-09-23 — Backend + frontend deployed
+- Backend live on Render: https://eightxfathom.onrender.com (`/health` confirmed 200)
+- Frontend live on Vercel: https://8xfrontend.vercel.app
+- Render env vars set (Supabase, Deepgram, Groq keys, `FRONTEND_ORIGIN`); Vercel env var `NEXT_PUBLIC_API_URL` set to the Render URL
+
 ### 2026-09-23 — Backend + frontend scaffold
 - Backend: FastAPI app at `/backend`, routers for `meetings`, `transcripts`, `summaries`, `action_items`, `highlights` (stub CRUD, mock responses), Supabase client (service-role key), CORS for localhost:3000 + `*.vercel.app`, `/health` endpoint, `Procfile` for Render, `requirements.txt` pinned to versions available now
 - Frontend: Next.js (TypeScript, Tailwind) app at `/frontend`, meetings list page fetches backend `/meetings` client-side, shows "No meetings yet" on empty

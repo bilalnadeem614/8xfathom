@@ -6,6 +6,11 @@ Living doc — update this at the end of each work session so context survives a
 
 Phase 1 — Environment & skeleton
 
+## Live URLs
+
+- Frontend (Vercel): https://8xfrontend.vercel.app
+- Backend (Render): https://eightxfathom.onrender.com (`/health` returns `{"status": "ok"}`)
+
 ## What's done
 
 - Conda env `8x` created, Python 3.11
@@ -20,10 +25,11 @@ Phase 1 — Environment & skeleton
 
 - (update here as work starts)
 
+- Backend deployed to Render (`https://eightxfathom.onrender.com`), frontend deployed to Vercel (`https://8xfrontend.vercel.app`) — both confirmed live
+- Deepgram and Groq API keys created, set in Render env vars and local `.env`
+
 ## What's next
 
-- Deploy backend to Render, frontend to Vercel — confirm live URLs work
-- Create Deepgram and Groq API keys, add to `.env`
 - Phase 2: upload endpoint + real transcription/summary pipeline (not yet started — stub routers only return placeholder data)
 
 ## Resolved decisions
