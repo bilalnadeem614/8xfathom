@@ -40,19 +40,19 @@ Build in this order. Don't move to the next phase until the current one works en
 - [X] Multiple summary templates, switchable
 - [X] Highlights (mark timestamp, jump to it)
 - [X] Search across meetings
-- [ ] Public shareable link for a meeting summary/clip
+- [X] Public shareable link for a meeting summary/clip
 
 ## Phase 5 — Seed data & polish
 
 - [X] Upload UI on the list page (modal: file + title, posts to `/meetings/upload`) and inline title editing (`PATCH /meetings/{id}`, click-to-edit on the list page)
-- [ ] Seed several realistic meetings, including one long multi-speaker (~8 people, ~1hr) transcript
-- [ ] Confirm the live link works fully signed out
-- [ ] Warm the Render backend before any reviewer is likely to click through (cold start ~30-50s)
+- [X] Seed several realistic meetings, including one long multi-speaker (~8 people, ~1hr) transcript
+- [X] Confirm the live link works fully signed out
+- [X] Warm the Render backend before any reviewer is likely to click through (cold start ~30-50s)
 - [X] UI pass: spacing, empty states, error states
 - [X] Confirm `.agent-logs/` has been committed incrementally throughout, not just at the end
 
 ## Phase 6 — Walkthrough & submission
 
-- [ ] Record Loom, camera on, under 5 minutes: what real Fathom does → what was built → what was deliberately cut and why
-- [ ] Confirm repo is public
-- [ ] Paste live link + repo link into the application, each labeled
+- [X] Record Loom, camera on, under 5 minutes: what real Fathom does → what was built → what was deliberately cut and why
+- [X] Confirm repo is public
+- [X] Paste live link + repo link into the application, each labeled
