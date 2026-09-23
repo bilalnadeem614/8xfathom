@@ -4,6 +4,13 @@ Append-only log of completed work, most recent first. For current state, see `ac
 
 ---
 
+### 2026-09-23 — Upload endpoint + Deepgram transcription (Phase 2 core pipeline)
+- `POST /meetings/upload`: multipart file + optional `title`/`participants`, uploads to Supabase Storage bucket `meeting-audio` at `{meeting_id}/{filename}`, inserts `meetings` row (`status=processing`), transcribes synchronously, writes `transcript_segments`, flips status to `ready`; any failure flips status to `failed` and returns 502 instead of leaving it stuck
+- `app/services/transcription.py`: Deepgram SDK v7 (`client.listen.v1.media.transcribe_file`), model `nova-3`, `diarize=True` + `utterances=True` + `smart_format`/`punctuate` — uses Deepgram's own utterance grouping (speaker turns) instead of manual word-by-word grouping
+- `GET /meetings/{id}` now returns the meeting row joined with its `transcript_segments` (ordered by `start_time`) for manual verification without the frontend
+- Verified locally end to end with a synthetic silent WAV: meeting created, storage upload succeeded, Deepgram call succeeded (empty transcript as expected for silence), status reached `ready`, then cleaned up the test row/object
+- Real-audio verification (Phase 0 recording) still pending — see `active_context.md`
+
 ### 2026-09-23 — Backend + frontend deployed
 - Backend live on Render: https://eightxfathom.onrender.com (`/health` confirmed 200)
 - Frontend live on Vercel: https://8xfrontend.vercel.app
