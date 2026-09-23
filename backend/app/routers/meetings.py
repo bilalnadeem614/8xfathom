@@ -1,6 +1,6 @@
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
@@ -86,7 +86,9 @@ def _process_meeting(meeting_id: str, storage_path: str, file_bytes: bytes, cont
 
 @router.get("")
 def list_meetings():
-    return []
+    supabase = get_supabase()
+    res = supabase.table("meetings").select("*").order("date", desc=True).execute()
+    return res.data
 
 
 @router.get("/{meeting_id}")
@@ -103,7 +105,35 @@ def get_meeting(meeting_id: str):
         .order("start_time")
         .execute()
     )
-    return {**meeting_res.data, "transcript_segments": segments_res.data}
+    summaries_res = (
+        supabase.table("summaries").select("*").eq("meeting_id", meeting_id).execute()
+    )
+    action_items_res = (
+        supabase.table("action_items").select("*").eq("meeting_id", meeting_id).execute()
+    )
+    return {
+        **meeting_res.data,
+        "transcript_segments": segments_res.data,
+        "summaries": summaries_res.data,
+        "action_items": action_items_res.data,
+    }
+
+
+@router.get("/{meeting_id}/audio-url")
+def get_audio_url(meeting_id: str):
+    supabase = get_supabase()
+    meeting_res = (
+        supabase.table("meetings").select("audio_url").eq("id", meeting_id).maybe_single().execute()
+    )
+    if not meeting_res.data or not meeting_res.data.get("audio_url"):
+        raise HTTPException(status_code=404, detail="Meeting audio not found")
+
+    expires_in = 3600
+    signed = supabase.storage.from_(STORAGE_BUCKET).create_signed_url(
+        meeting_res.data["audio_url"], expires_in
+    )
+    expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
+    return {"url": signed["signedURL"], "expires_at": expires_at.isoformat()}
 
 
 @router.post("")

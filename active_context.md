@@ -4,7 +4,7 @@ Living doc — update this at the end of each work session so context survives a
 
 ## Current phase
 
-Phase 2 — Core pipeline
+Phase 3 — Core UI
 
 ## Live URLs
 
@@ -30,13 +30,23 @@ Phase 2 — Core pipeline
 
 - (update here as work starts)
 
-- Backend deployed to Render (`https://eightxfathom.onrender.com`), frontend deployed to Vercel (`https://8xfrontend.vercel.app`) — both confirmed live
+- Backend deployed to Render (`https://eightxfathom.onrender.com`), frontend deployed to Vercel (`https://8xfrontend.vercel.app`) — both confirmed live locally-tested changes not yet redeployed, see below
 - Deepgram and Groq API keys created, set in Render env vars and local `.env`
+- **Phase 3 core UI built and verified locally against real data (meeting `310026c8...`):**
+  - `GET /meetings` (`backend/app/routers/meetings.py`) was a stub returning `[]` — now returns all meetings ordered by `date desc`
+  - `GET /meetings/{id}` now also returns `summaries` and `action_items` arrays alongside `transcript_segments`, so the frontend makes one call instead of four
+  - New `GET /meetings/{id}/audio-url` — looks up the stored path, calls Supabase Storage `create_signed_url(path, expires_in=3600)`, returns `{url, expires_at}`. Raw `audio_url` storage path is never sent to the frontend as something to fetch directly.
+  - Frontend: meeting list page (`frontend/app/page.tsx`) — cards with title/date/duration/status pill, links to detail page
+  - Meeting detail page (`frontend/app/meetings/[id]/page.tsx`) — polls `GET /meetings/{id}` every 3s while `status` is `processing`/`uploading`, fetches signed audio URL once `ready`, two-column layout: transcript (left, scrollable, clickable timestamps) + summary/action-items (right). `<audio>` `onTimeUpdate` drives active-segment highlighting (`currentTime` within `[start_time, end_time)`); `onError` re-fetches a fresh signed URL if the link expires mid-session.
+  - Summary rendered via `react-markdown` (new dependency — no markdown lib existed, needed a real parser rather than hand-rolling one) into a `.markdown-body`-scoped set of plain CSS rules in `globals.css` (skipped `@tailwindcss/typography` since Tailwind v4's CSS-based config makes a few manual rules just as cheap and one less dependency)
+  - Action items distinguish `owner === "Team"` (👥 grey badge) from a named person (👤 indigo badge); clicking an item scrolls the transcript to its `source_segment_id` and seeks the audio there
+  - Verified end-to-end with Playwright against the local backend (see progress.md entry for what was checked)
 
 ## What's next
 
-- Phase 3: real UI (meeting list, meeting detail with transcript/summary/action-item panels) — not started, stub frontend only
+- Redeploy backend (Render) and frontend (Vercel) — current live URLs are still serving the old stub `/meetings` list and old detail response
 - Consider: `summarize_and_store` and `_transcribe_and_store` in `app/routers/meetings.py` are split out so they're easy to hand to `BackgroundTasks` later — upload requests currently block on the full pipeline (transcription + Groq calls), which is slow for a real recording. Worth revisiting once the frontend needs a snappier upload response.
+- No upload UI yet — meetings are still created via the `POST /meetings/upload` API directly, not from the frontend. Not asked for in this Phase 3 pass; flagging for whoever picks up next.
 
 ## Resolved decisions
 
