@@ -7,9 +7,12 @@ import ReactMarkdown from "react-markdown";
 import {
   ActionItem,
   MeetingDetail,
+  askMeeting,
   fetchAudioUrl,
   fetchMeeting,
 } from "../../lib/api";
+
+type ChatMessage = { question: string; answer: string };
 
 function formatTimestamp(seconds: number): string {
   const mins = Math.floor(seconds / 60);
@@ -26,6 +29,28 @@ export default function MeetingDetailPage() {
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const segmentRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [question, setQuestion] = useState("");
+  const [asking, setAsking] = useState(false);
+  const [askError, setAskError] = useState<string | null>(null);
+
+  const submitQuestion = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const q = question.trim();
+    if (!q || asking) return;
+    setAsking(true);
+    setAskError(null);
+    try {
+      const { answer } = await askMeeting(id, q);
+      setChatMessages((prev) => [...prev, { question: q, answer }]);
+      setQuestion("");
+    } catch (err) {
+      setAskError(err instanceof Error ? err.message : "Failed to get answer");
+    } finally {
+      setAsking(false);
+    }
+  };
 
   const loadAudioUrl = useCallback(() => {
     fetchAudioUrl(id).then((res) => setAudioUrl(res.url)).catch(() => setAudioUrl(null));
@@ -215,6 +240,45 @@ export default function MeetingDetailPage() {
                     </li>
                   )}
                 </ul>
+              </section>
+
+              <section className="rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
+                <h2 className="border-b border-zinc-200 px-4 py-3 font-medium text-black dark:border-zinc-800 dark:text-zinc-50">
+                  Ask the call
+                </h2>
+                <div className="max-h-80 overflow-y-auto p-4">
+                  {chatMessages.length === 0 && (
+                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                      Ask a question about this meeting.
+                    </p>
+                  )}
+                  {chatMessages.map((m, i) => (
+                    <div key={i} className="mb-4">
+                      <p className="text-sm font-medium text-black dark:text-zinc-50">{m.question}</p>
+                      <p className="mt-1 text-sm text-zinc-700 dark:text-zinc-300">{m.answer}</p>
+                    </div>
+                  ))}
+                  {asking && (
+                    <p className="text-sm text-zinc-500 dark:text-zinc-400">Thinking…</p>
+                  )}
+                  {askError && <p className="text-sm text-red-500">{askError}</p>}
+                </div>
+                <form onSubmit={submitQuestion} className="flex gap-2 border-t border-zinc-200 p-3 dark:border-zinc-800">
+                  <input
+                    value={question}
+                    onChange={(e) => setQuestion(e.target.value)}
+                    placeholder="What did the team decide about..."
+                    disabled={asking}
+                    className="flex-1 rounded-md border border-zinc-300 bg-transparent px-3 py-1.5 text-sm text-black outline-none focus:border-blue-500 dark:border-zinc-700 dark:text-zinc-50"
+                  />
+                  <button
+                    type="submit"
+                    disabled={asking || !question.trim()}
+                    className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+                  >
+                    Ask
+                  </button>
+                </form>
               </section>
             </div>
           </div>

@@ -3,8 +3,9 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from pydantic import BaseModel
 
-from app.services.summarization import extract_action_items, generate_summary
+from app.services.summarization import answer_question, extract_action_items, generate_summary
 from app.services.transcription import transcribe_audio
 from app.supabase_client import get_supabase
 
@@ -117,6 +118,27 @@ def get_meeting(meeting_id: str):
         "summaries": summaries_res.data,
         "action_items": action_items_res.data,
     }
+
+
+class AskRequest(BaseModel):
+    question: str
+
+
+@router.post("/{meeting_id}/ask")
+def ask_meeting(meeting_id: str, body: AskRequest):
+    supabase = get_supabase()
+    segments_res = (
+        supabase.table("transcript_segments")
+        .select("*")
+        .eq("meeting_id", meeting_id)
+        .order("start_time")
+        .execute()
+    )
+    if not segments_res.data:
+        raise HTTPException(status_code=409, detail="Transcript not ready for this meeting yet")
+
+    answer = answer_question(segments_res.data, body.question)
+    return {"answer": answer}
 
 
 @router.get("/{meeting_id}/audio-url")

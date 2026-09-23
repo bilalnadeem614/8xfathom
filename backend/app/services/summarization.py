@@ -65,6 +65,30 @@ def generate_summary(transcript_segments: list[dict], template_type: str = "gene
     return response.choices[0].message.content.strip()
 
 
+def answer_question(transcript_segments: list[dict], question: str) -> str:
+    transcript_text = _format_transcript(transcript_segments)
+
+    response = get_groq().chat.completions.create(
+        model=GROQ_MODEL,
+        temperature=0.2,
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You answer questions about a meeting using ONLY the transcript below. "
+                    "If the answer isn't in the transcript, say clearly that it wasn't discussed "
+                    "rather than guessing."
+                ),
+            },
+            {
+                "role": "user",
+                "content": f"Transcript:\n{transcript_text}\n\nQuestion: {question}",
+            },
+        ],
+    )
+    return response.choices[0].message.content.strip()
+
+
 def _extract_json_array(raw: str) -> list:
     """Parse a JSON array out of a model response that may be wrapped in markdown
     code fences or have surrounding prose."""

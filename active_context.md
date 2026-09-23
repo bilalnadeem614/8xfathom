@@ -4,7 +4,7 @@ Living doc — update this at the end of each work session so context survives a
 
 ## Current phase
 
-Phase 3 — Core UI
+Phase 4 — Ask the call (chat)
 
 ## Live URLs
 
@@ -41,6 +41,8 @@ Phase 3 — Core UI
   - Summary rendered via `react-markdown` (new dependency — no markdown lib existed, needed a real parser rather than hand-rolling one) into a `.markdown-body`-scoped set of plain CSS rules in `globals.css` (skipped `@tailwindcss/typography` since Tailwind v4's CSS-based config makes a few manual rules just as cheap and one less dependency)
   - Action items distinguish `owner === "Team"` (👥 grey badge) from a named person (👤 indigo badge); clicking an item scrolls the transcript to its `source_segment_id` and seeks the audio there
   - Verified end-to-end with Playwright against the local backend (see progress.md entry for what was checked)
+
+- **Ask the call chat done:** `POST /meetings/{id}/ask` (`backend/app/routers/meetings.py`) — reuses the same `transcript_segments` fetch as `GET /meetings/{id}`, 409 if empty (not ready yet), else calls `answer_question(segments, question)` in `app/services/summarization.py` (reuses existing `_format_transcript`, whole transcript passed raw — no embeddings/vector DB, disproportionate for single-meeting scope). Frontend: new "Ask the call" section on the meeting detail page (`frontend/app/meetings/[id]/page.tsx`), question/answer thread in local React state only (no DB persistence), loading + error states. Verified against real meeting `310026c8...` — see `progress.md` for the actual Q&A tested.
 
 ## What's next
 

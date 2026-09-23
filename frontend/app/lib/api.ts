@@ -56,3 +56,16 @@ export async function fetchAudioUrl(id: string): Promise<{ url: string; expires_
   if (!res.ok) throw new Error(`Failed to fetch audio url: ${res.status}`);
   return res.json();
 }
+
+export async function askMeeting(id: string, question: string): Promise<{ answer: string }> {
+  const res = await fetch(`${API_URL}/meetings/${id}/ask`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ question }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.detail ?? `Failed to ask: ${res.status}`);
+  }
+  return res.json();
+}
