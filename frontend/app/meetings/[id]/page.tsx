@@ -78,12 +78,19 @@ export default function MeetingDetailPage() {
   useEffect(() => {
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout>;
+    let linkedSegmentId = new URLSearchParams(window.location.search).get("segment");
 
     const poll = () => {
       fetchMeeting(id)
         .then((data) => {
           if (cancelled) return;
           setMeeting(data);
+          const linked = data.transcript_segments.find((s) => s.id === linkedSegmentId);
+          if (linked) {
+            linkedSegmentId = null;
+            setCurrentTime(linked.start_time);
+            setTimeout(() => segmentRefs.current[linked.id]?.scrollIntoView({ block: "center" }));
+          }
           if (data.status === "processing" || data.status === "uploading") {
             timer = setTimeout(poll, 3000);
           }
@@ -141,7 +148,7 @@ export default function MeetingDetailPage() {
   return (
     <div className="mx-auto max-w-6xl px-6 py-8">
       <Link
-        href="/"
+        href="/meetings"
         className="inline-flex items-center gap-1 text-xs font-medium text-zinc-500 hover:text-blue-600 dark:text-zinc-500 dark:hover:text-blue-400"
       >
         <ArrowLeft className="h-3.5 w-3.5" strokeWidth={2.5} />

@@ -45,6 +45,16 @@ export type MeetingDetail = Meeting & {
   action_items: ActionItem[];
 };
 
+export type InboxActionItem = ActionItem & {
+  meeting: { id: string; title: string; date: string };
+};
+
+export async function fetchActionItems(): Promise<InboxActionItem[]> {
+  const res = await fetch(`${API_URL}/action-items`);
+  if (!res.ok) throw new Error(`Failed to fetch action items: ${res.status}`);
+  return res.json();
+}
+
 export async function fetchMeeting(id: string): Promise<MeetingDetail> {
   const res = await fetch(`${API_URL}/meetings/${id}`);
   if (!res.ok) throw new Error(`Failed to fetch meeting: ${res.status}`);

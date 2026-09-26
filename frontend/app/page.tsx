@@ -1,282 +1,204 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Calendar, Clock, Circle, Loader2, XCircle, Upload, X, Pencil } from "lucide-react";
-import { API_URL, Meeting, MeetingStatus, renameMeeting, uploadMeeting } from "./lib/api";
-import { ShareButton } from "./share-button";
+import { ArrowUpRight, Users } from "lucide-react";
+import { fetchActionItems, InboxActionItem } from "./lib/api";
 
-const STATUS_CONFIG: Record<
-  MeetingStatus,
-  { label: string; color: string; icon: typeof Circle }
-> = {
-  ready: { label: "Ready", color: "text-emerald-600 dark:text-emerald-400", icon: Circle },
-  processing: { label: "Processing", color: "text-amber-600 dark:text-amber-400", icon: Loader2 },
-  uploading: { label: "Uploading", color: "text-amber-600 dark:text-amber-400", icon: Loader2 },
-  failed: { label: "Failed", color: "text-red-600 dark:text-red-400", icon: XCircle },
-};
+type GroupBy = "owner" | "meeting";
 
-function StatusBadge({ status }: { status: MeetingStatus }) {
-  const { label, color, icon: Icon } = STATUS_CONFIG[status];
-  const spinning = status === "processing" || status === "uploading";
-  return (
-    <span className={`inline-flex shrink-0 items-center gap-1.5 text-xs font-medium ${color}`}>
-      <Icon className={`h-3 w-3 ${spinning ? "animate-spin" : "fill-current"}`} strokeWidth={2.5} />
-      {label}
-    </span>
-  );
+const TEAM = "Team";
+const UNASSIGNED = "Unassigned";
+
+const ownerOf = (item: InboxActionItem) => item.owner?.trim() || UNASSIGNED;
+
+function initials(owner: string): string {
+  const speaker = owner.match(/^speaker\s*(\d+)$/i);
+  if (speaker) return `S${speaker[1]}`;
+  return owner
+    .split(/\s+/)
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 }
 
-function formatDuration(seconds: number | null): string | null {
-  if (!seconds) return null;
-  const mins = Math.round(seconds / 60);
-  return `${mins} min`;
-}
-
-function EditableTitle({ meeting, onSaved }: { meeting: Meeting; onSaved: (m: Meeting) => void }) {
-  const [editing, setEditing] = useState(false);
-  const [value, setValue] = useState(meeting.title);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (editing) inputRef.current?.focus();
-  }, [editing]);
-
-  const save = async () => {
-    const title = value.trim();
-    setEditing(false);
-    if (!title || title === meeting.title) {
-      setValue(meeting.title);
-      return;
-    }
-    try {
-      const updated = await renameMeeting(meeting.id, title);
-      onSaved(updated);
-    } catch {
-      setValue(meeting.title);
-    }
-  };
-
-  if (editing) {
+function OwnerBadge({ owner }: { owner: string }) {
+  if (owner === TEAM) {
     return (
-      <input
-        ref={inputRef}
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onClick={(e) => e.preventDefault()}
-        onBlur={save}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") { e.preventDefault(); save(); }
-          if (e.key === "Escape") { setValue(meeting.title); setEditing(false); }
-        }}
-        className="pointer-events-auto w-full truncate rounded border border-blue-500 bg-transparent px-1 text-sm font-medium text-zinc-900 outline-none dark:text-zinc-50"
-      />
+      <span title={TEAM} className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-dashed border-zinc-400 text-zinc-500 dark:border-zinc-600 dark:text-zinc-400">
+        <Users className="h-2.5 w-2.5" strokeWidth={2.5} />
+      </span>
     );
   }
-
+  if (owner === UNASSIGNED) {
+    return <span title={UNASSIGNED} className="h-5 w-5 shrink-0 rounded-full border border-dashed border-zinc-300 dark:border-zinc-700" />;
+  }
   return (
-    <span className="flex min-w-0 items-center gap-1.5">
-      <p className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-50">{meeting.title}</p>
-      <button
-        onClick={() => setEditing(true)}
-        aria-label="Edit title"
-        className="pointer-events-auto shrink-0 cursor-pointer text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
-      >
-        <Pencil className="h-3 w-3" strokeWidth={2} />
-      </button>
+    <span title={owner} className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-[9px] font-semibold text-white dark:bg-zinc-200 dark:text-zinc-900">
+      {initials(owner)}
     </span>
   );
 }
 
-function UploadModal({
-  onClose,
-  onStarted,
-  onSettled,
-}: {
-  onClose: () => void;
-  onStarted: (tempId: string, title: string) => void;
-  onSettled: (tempId: string, err: string | null) => void;
-}) {
-  const [file, setFile] = useState<File | null>(null);
-  const [title, setTitle] = useState("");
+const shortDate = (iso: string) =>
+  new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!file) return;
-    const tempId = `temp-${Date.now()}`;
-    uploadMeeting(file, title)
-      .then(() => onSettled(tempId, null))
-      .catch((err) => onSettled(tempId, err instanceof Error ? err.message : "Upload failed"));
-    onStarted(tempId, title.trim() || file.name);
-    onClose();
-  };
+// due_date is a plain date — parse as local, not UTC midnight.
+const dueDate = (d: string) => shortDate(`${d}T00:00:00`);
 
+function Row({ item, showMeeting }: { item: InboxActionItem; showMeeting: boolean }) {
+  const owner = ownerOf(item);
+  const href = `/meetings/${item.meeting_id}${item.source_segment_id ? `?segment=${item.source_segment_id}` : ""}`;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-sm rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Upload meeting</h2>
-          <button onClick={onClose} aria-label="Close" className="cursor-pointer">
-            <X className="h-4 w-4 text-zinc-500" />
-          </button>
-        </div>
-        <form onSubmit={submit} className="mt-4 flex flex-col gap-3">
-          <input
-            type="text"
-            placeholder="Title (optional)"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="rounded-lg border border-zinc-300 bg-transparent px-3 py-2 text-sm text-zinc-900 outline-none focus:border-blue-500 dark:border-zinc-700 dark:text-zinc-50"
-          />
-          <input
-            type="file"
-            accept="audio/*,video/*"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            className="cursor-pointer text-sm text-zinc-700 file:cursor-pointer dark:text-zinc-300"
-          />
-          <button
-            type="submit"
-            disabled={!file}
-            className="mt-1 cursor-pointer rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Upload
-          </button>
-        </form>
-      </div>
-    </div>
+    <li>
+      <Link
+        href={href}
+        className="group flex items-center gap-3 px-3 py-2 transition-colors hover:bg-zinc-100 focus-visible:bg-zinc-100 focus-visible:outline-none dark:hover:bg-zinc-900 dark:focus-visible:bg-zinc-900"
+      >
+        <span aria-hidden className="h-3.5 w-3.5 shrink-0 rounded-full border-[1.5px] border-zinc-300 group-hover:border-blue-500 dark:border-zinc-600" />
+        <span className="min-w-0 flex-1 truncate text-sm text-zinc-800 dark:text-zinc-200">{item.task}</span>
+        {showMeeting && (
+          <span className="hidden max-w-[14rem] shrink-0 truncate text-xs text-zinc-400 group-hover:text-blue-600 sm:inline dark:text-zinc-500 dark:group-hover:text-blue-400">
+            {item.meeting.title} · {shortDate(item.meeting.date)}
+          </span>
+        )}
+        <span className="w-14 shrink-0 text-right font-mono text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
+          {item.due_date ? dueDate(item.due_date) : ""}
+        </span>
+        <OwnerBadge owner={owner} />
+      </Link>
+    </li>
   );
 }
 
-export default function Home() {
-  const [meetings, setMeetings] = useState<Meeting[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [showUpload, setShowUpload] = useState(false);
+function ownerRank(owner: string) {
+  if (owner === TEAM) return 1;
+  if (owner === UNASSIGNED) return 2;
+  return 0;
+}
 
-  const refetch = () => {
-    return fetch(`${API_URL}/meetings`)
-      .then((res) => {
-        if (!res.ok) throw new Error(`Failed to fetch meetings: ${res.status}`);
-        return res.json();
-      })
-      .then((data: Meeting[]) => {
-        setMeetings(data);
-        return data;
-      })
-      .catch((err) => setError(err.message));
-  };
+export default function ActionItemsInbox() {
+  const [items, setItems] = useState<InboxActionItem[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [groupBy, setGroupBy] = useState<GroupBy>("owner");
+  const [ownerFilter, setOwnerFilter] = useState<string | null>(null);
 
   useEffect(() => {
-    refetch();
+    fetchActionItems().then(setItems).catch((err) => setError(err.message));
   }, []);
 
-  useEffect(() => {
-    const hasPending = meetings?.some((m) => m.status === "processing" || m.status === "uploading");
-    if (!hasPending) return;
-    const timer = setTimeout(refetch, 3000);
-    return () => clearTimeout(timer);
-  }, [meetings]);
+  const owners = useMemo(() => {
+    const counts = new Map<string, number>();
+    items?.forEach((i) => counts.set(ownerOf(i), (counts.get(ownerOf(i)) ?? 0) + 1));
+    return [...counts].sort(([a], [b]) => ownerRank(a) - ownerRank(b) || a.localeCompare(b));
+  }, [items]);
+
+  const groups = useMemo(() => {
+    const visible = (items ?? []).filter((i) => !ownerFilter || ownerOf(i) === ownerFilter);
+    const map = new Map<string, { label: string; meeting?: InboxActionItem["meeting"]; items: InboxActionItem[] }>();
+    for (const item of visible) {
+      const key = groupBy === "owner" ? ownerOf(item) : item.meeting_id;
+      if (!map.has(key)) {
+        map.set(key, groupBy === "owner" ? { label: key, items: [] } : { label: item.meeting.title, meeting: item.meeting, items: [] });
+      }
+      map.get(key)!.items.push(item);
+    }
+    const list = [...map.values()];
+    // items arrive newest-meeting first, so meeting groups are already ordered
+    if (groupBy === "owner") list.sort((a, b) => ownerRank(a.label) - ownerRank(b.label) || a.label.localeCompare(b.label));
+    return list;
+  }, [items, groupBy, ownerFilter]);
+
+  const meetingCount = new Set(items?.map((i) => i.meeting_id)).size;
 
   return (
-    <main className="mx-auto max-w-4xl px-6 py-8">
-      <div className="flex items-baseline justify-between border-b border-zinc-200 pb-4 dark:border-zinc-800">
-        <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-          Meetings
-        </h1>
-        <div className="flex items-center gap-3">
-          {meetings && meetings.length > 0 && (
-            <span className="text-xs text-zinc-400 dark:text-zinc-600">
-              {meetings.length} total
-            </span>
+    <main className="mx-auto max-w-4xl px-4 py-8 md:px-8">
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">Action items</h1>
+          {items && (
+            <p className="mt-1 text-xs text-zinc-500">
+              {items.length} open across {meetingCount} meeting{meetingCount === 1 ? "" : "s"}
+            </p>
           )}
-          <button
-            onClick={() => setShowUpload(true)}
-            className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
-          >
-            <Upload className="h-3.5 w-3.5" strokeWidth={2} />
-            Upload meeting
-          </button>
         </div>
+        <div role="radiogroup" aria-label="Group by" className="flex rounded-md bg-zinc-200/70 p-0.5 text-xs dark:bg-zinc-800">
+          {(["owner", "meeting"] as const).map((g) => (
+            <button
+              key={g}
+              role="radio"
+              aria-checked={groupBy === g}
+              onClick={() => setGroupBy(g)}
+              className={`cursor-pointer rounded px-2.5 py-1 font-medium capitalize ${
+                groupBy === g
+                  ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-950 dark:text-zinc-50"
+                  : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+              }`}
+            >
+              By {g}
+            </button>
+          ))}
+        </div>
+      </header>
+
+      {owners.length > 1 && (
+        <div className="mt-5 flex flex-wrap gap-1.5">
+          {[[null, items?.length ?? 0] as const, ...owners].map(([owner, count]) => {
+            const active = ownerFilter === owner;
+            return (
+              <button
+                key={owner ?? "all"}
+                onClick={() => setOwnerFilter(owner)}
+                aria-pressed={active}
+                className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs ${
+                  active
+                    ? "border-blue-600 bg-blue-600 text-white"
+                    : "border-zinc-200 text-zinc-600 hover:border-zinc-400 dark:border-zinc-800 dark:text-zinc-400 dark:hover:border-zinc-600"
+                }`}
+              >
+                {owner ?? "Everyone"}
+                <span className={`tabular-nums ${active ? "text-blue-100" : "text-zinc-400 dark:text-zinc-600"}`}>{count}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {error && <p className="mt-8 text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {!error && items === null && <p className="mt-8 text-sm text-zinc-500">Loading…</p>}
+      {items?.length === 0 && (
+        <p className="mt-8 text-sm text-zinc-500">
+          No action items yet. <Link href="/meetings" className="text-blue-600 hover:underline dark:text-blue-400">Upload a meeting</Link> to get started.
+        </p>
+      )}
+
+      <div className="mt-6 space-y-6">
+        {groups.map((group) => (
+          <section key={group.meeting?.id ?? group.label}>
+            <h2 className="flex items-center gap-2 border-b border-zinc-200 px-3 pb-1.5 text-xs font-medium text-zinc-500 dark:border-zinc-800">
+              {group.meeting ? (
+                <Link href={`/meetings/${group.meeting.id}`} className="inline-flex min-w-0 items-center gap-1 text-zinc-800 hover:text-blue-600 dark:text-zinc-200 dark:hover:text-blue-400">
+                  <span className="truncate">{group.label}</span>
+                  <ArrowUpRight className="h-3 w-3 shrink-0" strokeWidth={2.5} />
+                </Link>
+              ) : (
+                <>
+                  <OwnerBadge owner={group.label} />
+                  <span className="text-zinc-800 dark:text-zinc-200">{group.label}</span>
+                </>
+              )}
+              {group.meeting && <span className="shrink-0">{shortDate(group.meeting.date)}</span>}
+              <span className="ml-auto tabular-nums">{group.items.length}</span>
+            </h2>
+            <ul className="divide-y divide-zinc-100 dark:divide-zinc-900">
+              {group.items.map((item) => (
+                <Row key={item.id} item={item} showMeeting={groupBy === "owner"} />
+              ))}
+            </ul>
+          </section>
+        ))}
       </div>
-
-      {showUpload && (
-        <UploadModal
-          onClose={() => setShowUpload(false)}
-          onStarted={(tempId, title) => {
-            const now = new Date().toISOString();
-            setMeetings((prev) => [
-              {
-                id: tempId,
-                title,
-                date: now,
-                duration_seconds: null,
-                participants: [],
-                status: "uploading",
-                audio_url: null,
-                created_at: now,
-              },
-              ...(prev ?? []),
-            ]);
-            setTimeout(refetch, 1500);
-          }}
-          onSettled={(tempId, err) => {
-            if (err) {
-              setError(err);
-              setMeetings((prev) => prev?.filter((m) => m.id !== tempId) ?? prev);
-            }
-            refetch();
-          }}
-        />
-      )}
-
-        {error && <p className="mt-6 text-sm text-red-600 dark:text-red-400">{error}</p>}
-        {!error && meetings === null && (
-          <p className="mt-6 text-sm text-zinc-500 dark:text-zinc-400">Loading…</p>
-        )}
-        {meetings?.length === 0 && (
-          <p className="mt-6 text-sm text-zinc-500 dark:text-zinc-400">No meetings yet</p>
-        )}
-
-        {meetings && meetings.length > 0 && (
-          <ul className="mt-2 divide-y divide-zinc-200 dark:divide-zinc-800">
-            {meetings.map((meeting) => (
-              <li key={meeting.id} className="relative">
-                <Link
-                  href={`/meetings/${meeting.id}`}
-                  aria-label={meeting.title}
-                  className="absolute -inset-x-2 inset-y-0 rounded-lg transition-colors hover:bg-zinc-100/70 dark:hover:bg-zinc-900/70"
-                />
-                <div className="pointer-events-none relative flex items-center gap-4 px-2 py-3">
-                  <div className="min-w-0 flex-1">
-                    <EditableTitle
-                      meeting={meeting}
-                      onSaved={(updated) =>
-                        setMeetings((prev) => prev?.map((m) => (m.id === updated.id ? updated : m)) ?? prev)
-                      }
-                    />
-                    <p className="mt-1 flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-500">
-                      <Calendar className="h-3 w-3" strokeWidth={2} />
-                      {new Date(meeting.date).toLocaleString(undefined, {
-                        dateStyle: "medium",
-                        timeStyle: "short",
-                      })}
-                      {formatDuration(meeting.duration_seconds) && (
-                        <>
-                          <span className="text-zinc-300 dark:text-zinc-700">·</span>
-                          <Clock className="h-3 w-3" strokeWidth={2} />
-                          {formatDuration(meeting.duration_seconds)}
-                        </>
-                      )}
-                    </p>
-                  </div>
-                  {meeting.status === "ready" && !meeting.id.startsWith("temp-") && (
-                    <ShareButton meetingId={meeting.id} />
-                  )}
-                  <StatusBadge status={meeting.status} />
-                </div>
-              </li>
-            ))}
-          </ul>
-      )}
     </main>
   );
 }

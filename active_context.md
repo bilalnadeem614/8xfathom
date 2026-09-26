@@ -26,6 +26,8 @@ Phase 4 — Ask the call (chat)
 - `extract_action_items` prompt refined further: explicit rule separates first-person commitments ("I'll do X" → owner = that line's speaker label, e.g. "Speaker 0") from collective/unassigned proposals ("let's do X", no one named → owner = "Team"). Transcript lines are already prefixed with speaker labels, so the model has what it needs to tell the two apart. Confirmed on the test meeting: the two "I'll..." items are back on `Speaker 0`, design-review item stayed `Team`.
 - Fixed status flow: `meetings.status` stays `processing` through transcription AND summary/action-item generation, only flips to `ready` once both have written successfully; `failed` (with reason) if any step throws. No new enum value added — `processing` covers the whole pipeline, kept simple rather than adding a DB migration for `transcribing`/`summarizing` granularity.
 
+- **Action-items-first restructure (2026-09-26):** `/` is now a cross-meeting action items inbox (group by owner/meeting, owner filter, rows deep-link to `/meetings/{id}?segment=...`); meeting list moved to `/meetings`; sidebar nav replaces top header. Backed by new `GET /action-items` (FK-embedded meeting title/date). Reasoning: after a call, users return for commitments, not recordings — meetings are the evidence behind each task, so they're the secondary view. See progress.md for details + test results.
+
 ## What's in progress
 
 - (update here as work starts)
@@ -47,6 +49,8 @@ Phase 4 — Ask the call (chat)
 - **Upload UI + rename done:** `PATCH /meetings/{id}` (`backend/app/routers/meetings.py`) accepts `{"title": ...}`, 422 on empty title, 404 if no row updated. Frontend list page (`frontend/app/page.tsx`) got an "Upload meeting" button opening a modal (title + file input, `POST /meetings/upload` via `uploadMeeting()` in `lib/api.ts`), and inline title editing (click title → input, save on Enter/blur, cancel on Escape, `renameMeeting()` PATCH). Since `/meetings/upload` blocks until the whole pipeline finishes, the modal closes immediately on submit and the list refetches once ~1.5s later (catches the row while it's still `processing`, since the DB insert happens before transcription starts) and again when the upload promise settles; polls every 3s afterward while any row is `processing`/`uploading` (same idea as the detail page's polling, just at the list level).
 
 ## What's next
+
+- Redeploy both (Render + Vercel) so the live URLs have the action-items-first layout and `GET /action-items`; warm Render before recording the walkthrough.
 
 - Redeploy backend (Render) and frontend (Vercel) — current live URLs are still serving the old stub `/meetings` list and old detail response, and don't have the upload/rename UI yet
 - Consider: `summarize_and_store` and `_transcribe_and_store` in `app/routers/meetings.py` are split out so they're easy to hand to `BackgroundTasks` later — upload requests currently block on the full pipeline (transcription + Groq calls), which is slow for a real recording. Worth revisiting since it's now user-triggered from the UI, not just curl.

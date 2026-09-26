@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "next-themes";
-import Link from "next/link";
-import { ThemeToggle } from "./theme-toggle";
+import { Sidebar } from "./sidebar";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -16,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Meetings",
+  title: "Notetaker",
   description: "AI meeting notetaker",
 };
 
@@ -27,18 +26,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col bg-zinc-50 dark:bg-zinc-950">
+      <body className="min-h-full flex flex-col md:flex-row bg-zinc-50 dark:bg-zinc-950">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <header className="flex h-11 shrink-0 items-center justify-between border-b border-zinc-800 bg-zinc-900 px-4">
-            <Link href="/" className="flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-blue-500" />
-              <span className="text-sm font-semibold tracking-tight text-zinc-100">
-                meetings
-              </span>
-            </Link>
-            <ThemeToggle />
-          </header>
-          <div className="flex-1">{children}</div>
+          <Sidebar />
+          <div className="min-w-0 flex-1">{children}</div>
         </ThemeProvider>
       </body>
     </html>
